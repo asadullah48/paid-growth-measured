@@ -1,0 +1,7 @@
+# Never upload local state to Vercel.
+node_modules/
+.next/
+.env
+.env.*
+tsconfig.tsbuildinfo
+.npm-cache/

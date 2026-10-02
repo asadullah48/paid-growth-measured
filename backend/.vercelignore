@@ -1,0 +1,9 @@
+# Never upload local state to Vercel.
+*.db
+.env
+.env.*
+.venv/
+__pycache__/
+.pytest_cache/
+pytest-cache-*/
+tests/

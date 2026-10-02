@@ -10,3 +10,4 @@ frontend/tsconfig.tsbuildinfo
 frontend/.npm-cache/
 backend/pytest-cache-*/
 work/
+.vercel
