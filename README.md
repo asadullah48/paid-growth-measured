@@ -116,7 +116,7 @@ The seed command is idempotent and does not change existing accounts. Editing `D
 
 ## Public Read-Only Demo (Vercel)
 
-The hosted demo runs as two Vercel projects from this repository and one PostgreSQL database. Every switch below is off by default, so local development is unchanged.
+The hosted demo runs as two Vercel projects from this repository and one PostgreSQL database. Both projects are connected to GitHub, so every push to `main` redeploys them; each project's Root Directory (`backend` or `frontend`) is set in its Vercel settings. Every switch below is off by default, so local development is unchanged.
 
 | Project | Root directory | Environment variables |
 | --- | --- | --- |
