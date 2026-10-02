@@ -62,15 +62,14 @@ def ensure_bootstrapped() -> None:
         root = Path(__file__).resolve().parents[1]
         config = Config(str(root / 'alembic.ini'))
         config.set_main_option('script_location', str(root / 'migrations'))
-        postgres = engine.dialect.name == 'postgresql'
-        with engine.connect() as lock:
-            if postgres:
-                lock.execute(text('SELECT pg_advisory_lock(:k)'), {'k': _LOCK_KEY})
-            try:
-                command.upgrade(config, 'head')
-                seed()
-            finally:
-                if postgres:
-                    lock.execute(text('SELECT pg_advisory_unlock(:k)'), {'k': _LOCK_KEY})
+        # Transaction-scoped lock, not session-scoped: behind a transaction
+        # pooler (Neon's pooled DATABASE_URL) consecutive statements may reach
+        # different server sessions, so a session lock could never be released.
+        # This one lives exactly as long as the open transaction below.
+        with engine.begin() as lock:
+            if engine.dialect.name == 'postgresql':
+                lock.execute(text('SELECT pg_advisory_xact_lock(:k)'), {'k': _LOCK_KEY})
+            command.upgrade(config, 'head')
+            seed()
         _bootstrapped = True
         log.info('Demo database bootstrapped.')
