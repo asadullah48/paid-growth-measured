@@ -1,16 +1,20 @@
 import csv
 import io
+import logging
 import os
 import secrets
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from . import demo
 from .database import get_db
 from .models import Activity, Agency, LoginAttempt, LoginSession, Record, User, now
 from .schemas import Campaign, Comment, Decision, Login, SCHEMAS
@@ -37,6 +41,8 @@ TRANSITIONS = {
 
 @app.middleware('http')
 async def request_boundaries(request: Request, call_next):
+    if demo.blocks(request.method, request.url.path):
+        return JSONResponse({'detail': demo.READ_ONLY_MESSAGE}, status_code=403)
     if request.method in {'POST', 'PUT', 'DELETE', 'PATCH'}:
         if request.headers.get('origin') and request.headers['origin'] != ORIGIN:
             return Response('Origin not allowed', status_code=403)
@@ -45,6 +51,11 @@ async def request_boundaries(request: Request, call_next):
         body = await request.body()
         if len(body) > 1_000_000:
             return Response('Request exceeds 1 MB limit', status_code=413)
+    try:
+        await run_in_threadpool(demo.ensure_bootstrapped)
+    except Exception:  # a broken database must not take the API down silently
+        logging.getLogger(__name__).exception('Demo bootstrap failed')
+        return JSONResponse({'detail': 'The demo database is not ready yet. Please try again shortly.'}, status_code=503)
     response = await call_next(request)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Cache-Control'] = 'no-store'
@@ -176,7 +187,7 @@ def logout(request: Request, response: Response, user: User = Depends(current_us
 @app.get('/auth/me')
 def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
     agency = db.get(Agency, user.agency_id)
-    return {**user_view(user), 'agency': agency.name, 'demo': agency.demo}
+    return {**user_view(user), 'agency': agency.name, 'demo': agency.demo, 'read_only': demo.read_only()}
 
 
 @app.get('/team')

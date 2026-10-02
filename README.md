@@ -114,6 +114,20 @@ All seeded users use the private `DEMO_PASSWORD` you configured. These are ficti
 
 The seed command is idempotent and does not change existing accounts. Editing `DEMO_PASSWORD` after seeding does not reset stored passwords.
 
+## Public Read-Only Demo (Vercel)
+
+The hosted demo runs as two Vercel projects from this repository and one PostgreSQL database. Every switch below is off by default, so local development is unchanged.
+
+| Project | Root directory | Environment variables |
+| --- | --- | --- |
+| API | `backend` | `DATABASE_URL` (from the connected database), `DEMO_READ_ONLY=true`, `DEMO_BOOTSTRAP=true`, `DEMO_PASSWORD`, `FRONTEND_ORIGIN` (the web project's URL), `COOKIE_SECURE=true` |
+| Web | `frontend` | `API_INTERNAL_URL` (the API project's URL), `NEXT_PUBLIC_DEMO_PASSWORD` (same value as `DEMO_PASSWORD`) |
+
+- `DEMO_READ_ONLY=true` refuses every write except signing in and out. The demo password is published on the sign-in page, so this is what stops visitors writing into a shared workspace.
+- `DEMO_BOOTSTRAP=true` runs `alembic upgrade head` and the idempotent seed on an instance's first request; a PostgreSQL advisory lock serialises concurrent cold starts.
+- `postgres://` and `postgresql://` URLs from hosted providers are rewritten to the installed psycopg 3 driver.
+- `API_INTERNAL_URL` is read when the frontend is **built** (Next.js rewrites are fixed at build time); redeploy the web project after changing it.
+
 ## Permissions
 
 - Administrators and Account Managers manage operational client/order/team records.
